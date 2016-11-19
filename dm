@@ -55,8 +55,9 @@ main(){
   [ $# -eq 0 ] && display_help 2
   readonly COP=$(get_cmd cop dcop) || error "dockmaster requires COP"
 
+  # read configration (sets __dockmaster_ variables)
   config-load
-  [ ${#__dockmaster_paths[@]} -eq 0 ] || error_noent \
+  [ ${#__dockmaster_paths[@]} -eq 0 ] && error_noent \
     "! dockmaster requires at least one configured compostion path" \
     "  - refer to the dmc command for configuring paths"
 
@@ -66,11 +67,11 @@ main(){
     exit $?
   }
 
-  # determine if a compostion is specified
   case $1 in
     -h|--help) display_help ;;
-    -v|--version) log "Dockmaster version $VERSION build $BUILD" ;;
+    -v|--version) log "Dockmaster version $VERSION build $BUILD" ; exit ;;
     -c|--composition*)
+      # if a compostion is specified, register and strip it from args
       if [[ "$1" == *"="* ]]; then
         DOCKMASTER_COMPOSITION=${1#*=}
         shift
