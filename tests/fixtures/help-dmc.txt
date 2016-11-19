@@ -1,0 +1,45 @@
+  dm - a utility for managing docker machines and compositions
+
+  Usage: dm [options] <command>
+
+  Examples:
+    # assign deploybot to node-b
+    dm assign deploybot.badevops.com node-b
+
+    # check all current assignments
+    dm status
+
+    # check assignment for deploybot
+    dm status deploybot.badevops.com
+
+    # check logs for deploybot (on its assigned machine)
+    dm compose deploybot.badevops.com logs # OR
+    dmc deploybot.badevops.com logs
+
+  Commands:
+    status [|machine|composition] [<name>]  show status of machine or composition
+                                            (no arguments shows total status report)
+
+    list [machines|compositions]            list available [machines|compositions]
+
+    assign <composition> <machine>          assigns <composition> to <machine>
+                                            (no arguments will allow interactive prompt)
+
+    unassign <composition>                  unassigns <composition> from current assigned machine
+                                            (no arguments will allow interactive prompt)
+
+    configure <machine>                     shows export variables for configuring shell to <machine>
+                                            (no arguments will allow interactive prompt)
+
+    compose <composition> [<args>]          forwards <args> to docker-compose for <composition> argument
+                                            (executes against assigned machine)
+
+  Options:
+    --no-prompt | -y                        skip prompt for overriding existing assignment
+
+    --quiet | -q                            dont complain when unassigning empty assignments
+
+    --no-pull | -p                          dont git pull when executing command
+
+    --git | -g                              auto commit assign/unassign symlink changes
+

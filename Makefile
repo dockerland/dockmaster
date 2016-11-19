@@ -64,7 +64,7 @@ $(NAMESPACE):
 	$(info * building $(NAMESPACE) ...)
 	@( \
 	  mkdir -p $(CWD)/bin ; \
-	  for file in dm; do sed \
+	  for file in dm dmc; do sed \
 	      -e '/\@start/,/\@end/d' \
 		    -e 's|@VERSION@|$(RELEASE_TAG)|' \
 		    -e 's|@BUILD@|$(shell echo "$(RELEASE_SHA)" | cut -c1-7)|' \
