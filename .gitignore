@@ -1,3 +1,9 @@
+# build process
+.shake/
+dist/
+report.html
+
+# standard
 *.swp
 dist
 dist-*
