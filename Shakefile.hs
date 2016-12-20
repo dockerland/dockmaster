@@ -8,23 +8,26 @@
 import Development.Shake
 import Development.Shake.FilePath
 
+shakeOpts :: ShakeOptions
 shakeOpts = shakeOptions { shakeFiles = ".shake/" }
 
+stackBuildOpts :: [String]
 stackBuildOpts = ["--copy-bins", "--local-bin-path", "dist"]
+
+srcFiles :: Action [FilePath]
+srcFiles = getDirectoryFiles "" ["src//*.hs"]
 
 main :: IO ()
 main = shakeArgs shakeOpts $ do
   want ["dist/dm" <.> exe]
 
   "dist/dm" <.> exe %> \f -> do
-    src <- getDirectoryFiles "" ["src//*.hs"]
-    need $ "app/Dm.hs" : src
-    cmd "stack" $ "build" : "dockmaster:exe:dm" : stackBuildOpts
+    need <$> ("app/Dm.hs":) <$> srcFiles
+    cmd "stack build dockmaster:exe:dm" stackBuildOpts
 
   "dist/dmc" <.> exe %> \f -> do
-    src <- getDirectoryFiles "" ["src//*.hs"]
-    need $ "app/Dmc.hs" : src
-    cmd "stack" $ "build" : "dockmaster:exe:dmc" : stackBuildOpts
+    need <$> ("app/Dmc.hs":) <$> srcFiles
+    cmd "stack build dockmaster:exe:dmc" stackBuildOpts
 
   "clean" ~> do
     putNormal "Cleaning files in .shake/ and dist/"
@@ -33,4 +36,4 @@ main = shakeArgs shakeOpts $ do
 
   "tests" ~> do
     putNormal "Running app-level tests via stack"
-    cmd "stack" ["test"]
+    cmd "stack test"
