@@ -12,26 +12,51 @@
 @version 0.1.0.0
 
 
+module Options.Utils
+
+-- | <tt>Text</tt> option
+textOption :: Mod OptionFields String -> Parser Text
+
+-- | <tt>Text</tt> argument type
+text :: ReadM Text
+
+-- | <a>FilePath</a> option
+filePathOption :: Mod OptionFields String -> Parser FilePath
+
+
 module Dockmaster
 
 -- | Runs <tt>docker-compose</tt> commands against resolved composition
 --   locations See usage docs for more info. Tries to find a
 --   <tt>dockmaster.yml</tt> file based on the initial path argument
-dm :: FilePath -> Text -> [Text] -> Sh ()
+dockmaster :: FilePath -> Bool -> Text -> [Text] -> Sh ()
 
 -- | Dockmaster configuration (specified by dockmaster.yml)
 data Dockmaster
-Dockmaster :: Maybe ComposeFile -> [Target] -> HashMap Text CommandConfig -> Dockmaster
-[dmFile] :: Dockmaster -> Maybe ComposeFile
+Dockmaster :: ComposeConfig -> EnvConfig -> [Target] -> HashMap Text CommandConfig -> Dockmaster
+[dmCompose] :: Dockmaster -> ComposeConfig
+[dmEnv] :: Dockmaster -> EnvConfig
 [dmTargets] :: Dockmaster -> [Target]
 [dmCommands] :: Dockmaster -> HashMap Text CommandConfig
 
--- | Configuration for <tt>docker-compose.yml</tt> file template &amp;
---   vars.
+-- | Configuration for <tt>docker-compose.yml</tt> arguments.
+data ComposeConfig
+ComposeConfig :: [ComposeFile] -> [Text] -> ComposeConfig
+[dcFiles] :: ComposeConfig -> [ComposeFile]
+[dcFlags] :: ComposeConfig -> [Text]
+
+-- | Configuration for docker-compose compose file construction.
 data ComposeFile
-ComposeFile :: FilePath -> [FilePath] -> ComposeFile
+ComposeFile :: FilePath -> Bool -> [FilePath] -> ComposeFile
 [cfPath] :: ComposeFile -> FilePath
-[cfVars] :: ComposeFile -> [FilePath]
+[cfTemplate] :: ComposeFile -> Bool
+[cfConfig] :: ComposeFile -> [FilePath]
+
+-- | Global environment variables for dockmaster execution.
+data EnvConfig
+EnvConfig :: [FilePath] -> HashMap Text Text -> EnvConfig
+[ecFiles] :: EnvConfig -> [FilePath]
+[ecVars] :: EnvConfig -> HashMap Text Text
 
 -- | Targets are used to identify where compositions are run.
 data Target
@@ -48,11 +73,22 @@ Shell :: Text -> Hook
 -- | Configuration for each command.
 data CommandConfig
 CommandConfig :: Bool -> [Hook] -> [Hook] -> CommandConfig
-[ccCompose] :: CommandConfig -> Bool
+[ccRunCompose] :: CommandConfig -> Bool
 [ccPreHooks] :: CommandConfig -> [Hook]
 [ccPostHooks] :: CommandConfig -> [Hook]
 
 -- | <a>FromJSON</a> instance for <a>ComposeFile</a>
+
+-- | Small helper method to parse dockmaster<i>compose</i>files/type.
+isTemplate :: Maybe String -> Bool
+
+-- | <a>FromJSON</a> instance for <a>ComposeConfig</a>
+
+-- | <a>Monoid</a> instance for <a>ComposeConfig</a>
+
+-- | <a>FromJSON</a> instance for <a>EnvConfig</a>
+
+-- | <a>Monoid</a> instance for <a>EnvConfig</a>
 
 -- | <a>FromJSON</a> instance for <a>Target</a>
 
@@ -67,6 +103,16 @@ CommandConfig :: Bool -> [Hook] -> [Hook] -> CommandConfig
 --   Note this assumes we are already in the correct dockmaster workdir.
 dockmasterYml :: Sh (Either Text Dockmaster)
 
+-- | Parse dockmaster yml file
+parseYml :: FilePath -> Sh (Either Text Dockmaster)
+
+-- | Sets environment variables defined by dockmaster configuration
+prepareEnv :: Dockmaster -> Sh ()
+
+-- | Takes machine name and <a>Sh</a> action, and wraps <a>Sh</a> action in
+--   scope of <tt>docker-machine</tt> env
+dockermachine :: Text -> Sh a -> Sh a
+
 -- | Executes specific dc command pre/post hooks around action argument
 --   (action arg is typically docker-compose command).
 hookWrap :: Text -> Sh () -> Sh ()
@@ -75,9 +121,16 @@ hookWrap :: Text -> Sh () -> Sh ()
 --   execute against.
 hookWrap' :: Dockmaster -> Text -> Sh () -> Sh ()
 
--- | Runs <tt>docker-compose</tt> but uses compiled
---   <tt>docker-compose.yml</tt> file if template/vars are specified in
---   <tt>dockmaster.yml</tt>.
+-- | Execute hook
+execHook :: Hook -> Sh ()
+
+-- | Runs <tt>docker-compose</tt> but uses <a>Dockmaster</a> configuration
+--   to possibly
+--   
+--   <ol>
+--   <li>Provide multiple templated docker-compose.yml files</li>
+--   <li>Pass global <tt>docker-compose</tt> flags on every call</li>
+--   </ol>
 dockercompose :: Dockmaster -> [Text] -> Sh ()
 
 -- | Dockmaster configuration
@@ -90,12 +143,17 @@ Config :: [FilePath] -> Config
 
 -- | Instance to parse dockmaster configuration file
 
+-- | Dockmaster configuration runtime errors
+data DmcError
+WorkDirNotFound :: DmcError
+DecodingError :: Text -> DmcError
+
 -- | Get global dockmaster config
 --   
 --   If <tt>config.yml</tt> fails to parse, returns a <tt>Left error</tt>.
 --   If <tt>config.yml</tt> is not found, returns <tt>Right baseConfig</tt>
 --   (default configuration).
-config :: Sh (Either Text Config)
+config :: Sh (Either DmcError Config)
 
 -- | Get base config options
 baseConfig :: Config
@@ -132,8 +190,8 @@ baseConfig :: Config
 --   &gt;&gt;&gt; getWorkDir "deploybot"
 --   Right "$HOME/git/deploybot"
 --   </pre>
-getWorkDir :: FilePath -> Sh (Either Text FilePath)
+getWorkDir :: FilePath -> Sh (Either DmcError FilePath)
 
 -- | Same thing as <a>getWorkDir</a> but uses a <a>Config</a> argument
 --   instead of resolving one.
-getWorkDir' :: Config -> FilePath -> Sh (Either Text FilePath)
+getWorkDir' :: Config -> FilePath -> Sh (Either DmcError FilePath)
